@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 WORKDIR /app
 
@@ -8,10 +8,12 @@ RUN apt update && apt install -y sox python3 python3-distutils curl ffmpeg libso
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py && \
     rm get-pip.py
-RUN pip3 install youtube-dl
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+RUN chmod a+rx /usr/local/bin/yt-dlp
+# RUN pip3 install youtube-dl
 
 # Grab a traffic noise video
-RUN youtube-dl https://www.youtube.com/watch?v=cUpox5jGdRQ --extract-audio && \
+RUN yt-dlp -f 'ba' https://www.youtube.com/watch?v=cUpox5jGdRQ --extract-audio --audio-format m4a && \
     mv *.m4a traffic.m4a
 
 # Take the first 30 minutes and turn into mp3

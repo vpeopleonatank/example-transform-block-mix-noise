@@ -19,6 +19,11 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    --in-folder)
+    IN_FOLDER="$2"
+    shift # past argument
+    shift # past value
+    ;;
     --out-directory)
     OUT_DIRECTORY="$2"
     shift # past argument
@@ -42,8 +47,8 @@ esac
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
-if [ ! "$IN_FILE" ]; then
-    echo "Missing --in-file"
+if [ ! "$IN_FILE" ] && [ ! "$IN_FOLDER" ]; then
+    echo "Missing --in-file or --in-folder"
     exit 1
 fi
 
@@ -63,29 +68,63 @@ if [ ! "$OUT_COUNT" ]; then
 fi
 
 mkdir -p $OUT_DIRECTORY
-FILENAME=$(basename -- "$IN_FILE")
-EXTENSION="${FILENAME##*.}"
-FILENAME="${FILENAME%.*}"
+if [ "$IN_FILE" ]; then
+  FILENAME=$(basename -- "$IN_FILE")
+  EXTENSION="${FILENAME##*.}"
+  FILENAME="${FILENAME%.*}"
 
-# copy the current file (not mixed) in as well
-OUT_FILE_NOT_MIXED="$OUT_DIRECTORY/$FILENAME.$EXTENSION"
-sox "$IN_FILE" -c 1 -r $FREQUENCY "$OUT_FILE_NOT_MIXED"
+  # copy the current file (not mixed) in as well
+  OUT_FILE_NOT_MIXED="$OUT_DIRECTORY/$FILENAME.$EXTENSION"
+  sox "$IN_FILE" -c 1 -r $FREQUENCY "$OUT_FILE_NOT_MIXED"
 
-# then loop from 1..OUT_COUNT and create mixed files
-i=1
-while [[ $i -lt $OUT_COUNT ]] ; do
-    MIX_FILE_IN=/app/segments/$(ls /app/segments/ | shuf -n 1)
-    OUT_FILE="$OUT_DIRECTORY/$FILENAME.m$i.$EXTENSION"
-    MIX_FILE=/tmp/mix.wav
-    IN_FILE_TMP=/tmp/in.wav
+  # then loop from 1..OUT_COUNT and create mixed files
+  i=1
+  while [[ $i -lt $OUT_COUNT ]] ; do
+      MIX_FILE_IN=/app/segments/$(ls /app/segments/ | shuf -n 1)
+      OUT_FILE="$OUT_DIRECTORY/$FILENAME.m$i.$EXTENSION"
+      MIX_FILE=/tmp/mix.wav
+      IN_FILE_TMP=/tmp/in.wav
 
-    # convert the mix file to right frequency
-    sox "$MIX_FILE_IN" -c 1 -r $FREQUENCY "$MIX_FILE"
-    # convert in file to right frequency
-    sox "$IN_FILE" -c 1 -r $FREQUENCY "$IN_FILE_TMP"
+      echo "$i"
+      # convert the mix file to right frequency
+      sox "$MIX_FILE_IN" -c 1 -r $FREQUENCY "$MIX_FILE"
+      # convert in file to right frequency
+      sox "$IN_FILE" -c 1 -r $FREQUENCY "$IN_FILE_TMP"
 
-    # merge two files
-    sox -m -v 1 "$IN_FILE_TMP" -v 0.$((RANDOM%3+1)) "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
+      # merge two files
+      sox -m -v 1 "$IN_FILE_TMP" -v 0.$((RANDOM%3+1)) "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
 
-    (( i += 1 ))
-done
+      (( i += 1 ))
+  done
+else
+  for entry in "$IN_FOLDER"/*
+  do
+    FILENAME=$(basename -- "$entry")
+    EXTENSION="${FILENAME##*.}"
+    FILENAME="${FILENAME%.*}"
+
+    # copy the current file (not mixed) in as well
+    OUT_FILE_NOT_MIXED="$OUT_DIRECTORY/$FILENAME.$EXTENSION"
+    # sox "$entry" -c 1 -r $FREQUENCY "$OUT_FILE_NOT_MIXED"
+
+    # then loop from 1..OUT_COUNT and create mixed files
+    i=1
+    while [[ $i -lt $OUT_COUNT ]] ; do
+        MIX_FILE_IN=/app/segments/$(ls /app/segments/ | shuf -n 1)
+        OUT_FILE="$OUT_DIRECTORY/$FILENAME.m$i.$EXTENSION"
+        MIX_FILE=/tmp/mix.wav
+        IN_FILE_TMP=/tmp/in.wav
+
+        # convert the mix file to right frequency
+        sox "$MIX_FILE_IN" -c 1 -r $FREQUENCY "$MIX_FILE"
+        # convert in file to right frequency
+        sox "$entry" -c 1 -r $FREQUENCY "$IN_FILE_TMP"
+
+        # merge two files
+        sox -m -v 1 "$IN_FILE_TMP" -v 0.$((RANDOM%3+1)) "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
+
+        (( i += 1 ))
+    done
+  done
+
+fi
