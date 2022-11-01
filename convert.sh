@@ -121,7 +121,8 @@ else
         sox "$entry" -c 1 -r $FREQUENCY "$IN_FILE_TMP"
 
         # merge two files
-        sox -m -v 1 "$IN_FILE_TMP" -v 0.$((RANDOM%3+1)) "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
+        # sox -m -v 1 "$IN_FILE_TMP" -v 0.$((RANDOM%3+1)) "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
+        sox -m -v 1 "$IN_FILE_TMP" -v 1 "$MIX_FILE" "$OUT_FILE" trim 0 `soxi -D "$IN_FILE_TMP"`
 
         (( i += 1 ))
     done
